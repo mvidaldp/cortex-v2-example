@@ -3,3 +3,6 @@
 venv
 cortex_creds
 **__pycache__**
+env
+.vscode
+cortex_creds
