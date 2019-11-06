@@ -6,3 +6,7 @@ cortex_creds
 env
 .vscode
 cortex_creds
+.vs
+.idea
+bin
+obj
