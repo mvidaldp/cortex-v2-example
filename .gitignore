@@ -10,4 +10,4 @@ cortex_creds
 .idea
 bin
 obj
-*Config.cs
+csharp\CortexAccess\Config.cs
