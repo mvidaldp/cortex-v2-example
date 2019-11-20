@@ -10,3 +10,4 @@ cortex_creds
 .idea
 bin
 obj
+Config.cs
