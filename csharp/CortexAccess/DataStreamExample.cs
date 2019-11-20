@@ -38,16 +38,19 @@ namespace CortexAccess
         }
 
         // Event
-        public event EventHandler<ArrayList> OnMotionDataReceived; // motion data
         public event EventHandler<ArrayList> OnEEGDataReceived; // eeg data
-        //public event EventHandler<ArrayList> OnDevDataReceived; // contact quality data
-        public event EventHandler<ArrayList> OnPerfDataReceived; // performance metric
+        public event EventHandler<ArrayList> OnMotionDataReceived; // motion data
+        public event EventHandler<ArrayList> OnDevDataReceived; // contact quality data
         public event EventHandler<ArrayList> OnBandPowerDataReceived; // band power
+        public event EventHandler<ArrayList> OnPerfDataReceived; // performance metric
+        public event EventHandler<ArrayList> OnMentalDataReceived; // mental commands
+        public event EventHandler<ArrayList> OnFacialDataReceived; // mental commands
+        public event EventHandler<ArrayList> OnSystemDataReceived; // mental commands
         public event EventHandler<Dictionary<string, JArray>> OnSubscribed;
+
 
         // Constructor
         public DataStreamExample() {
-
             _authorizer = new Authorizer();
             _headsetFinder = new HeadsetFinder();
             _sessionCreator = new SessionCreator();
@@ -151,22 +154,32 @@ namespace CortexAccess
             ArrayList data = e.Data.ToObject<ArrayList>();
             // insert timestamp to datastream
             data.Insert(0, e.Time);
-            if (e.StreamName == "eeg")
+            switch (e.StreamName)
             {
-                OnEEGDataReceived(this, data);
-            }
-            else if (e.StreamName == "mot")
-            {
-                
-                OnMotionDataReceived(this, data);
-            }
-            else if (e.StreamName == "met")
-            {
-                OnPerfDataReceived(this, data);
-            }
-            else if (e.StreamName == "pow")
-            {
-                OnBandPowerDataReceived(this, data);
+             case "eeg":
+                 OnEEGDataReceived(this, data);
+                 break;
+             case "mot":
+                 OnMotionDataReceived(this, data);
+                 break;
+             case "dev":
+                 OnDevDataReceived(this, data);
+                 break;
+             case "pow":
+                 OnBandPowerDataReceived(this, data);
+                 break;
+             case "met":
+                 OnPerfDataReceived(this, data);
+                 break;
+             case "com":
+                 OnMentalDataReceived(this, data);
+                 break;
+             case "fac":
+                 OnFacialDataReceived(this, data);
+                 break;
+             case "sys":
+                 OnSystemDataReceived(this, data);
+                 break;
             }
         }
         private void MessageErrorRecieved(object sender, ErrorMsgEventArgs e)
