@@ -17,7 +17,7 @@ namespace EEGLogger
         private static System.Timers.Timer aTimer;
         private static ArrayList header = new ArrayList();
         private static Dictionary<string, ArrayList> headerKeys = new Dictionary<string, ArrayList>();
-        private static Dictionary<string, ArrayList> wholeData = new Dictionary<string, ArrayList>();
+        private static Dictionary<string, Dictionary<string, Dictionary<string, string>>> wholeData = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>();
         
 
         static void Main(string[] args)
@@ -33,7 +33,7 @@ namespace EEGLogger
             OutFileStream = new FileStream(OutFilePath, FileMode.Append, FileAccess.Write);
             
             DataStreamExample dse = new DataStreamExample();
-            //dse.AddStreams("eeg");
+            dse.AddStreams("eeg");
             dse.AddStreams("mot");
             dse.AddStreams("dev");
             dse.AddStreams("pow");
@@ -50,7 +50,7 @@ namespace EEGLogger
             dse.OnMentalDataReceived += OnMentalDataReceived;
             dse.OnFacialDataReceived += OnFacialDataReceived;
             dse.OnSystemDataReceived += OnSystemDataReceived;
-            
+
             dse.Start();
 
             Console.WriteLine("Press Esc to exit");
@@ -134,7 +134,8 @@ namespace EEGLogger
 
         private static void OnTimedEvent(Object source, ElapsedEventArgs e)
         {
-            WriteDataToFile();
+            Dictionary<string, Dictionary<string, Dictionary<string, string>>> toWrite = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>(wholeData);
+            WriteDataToFile(toWrite);
         }
 
         // Write Header to File
@@ -155,37 +156,28 @@ namespace EEGLogger
         }
         
         // Write Data to File
-        private static void WriteDataToFile()
+        private static void WriteDataToFile(Dictionary<string, Dictionary<string, Dictionary<string, string>>> buffered)
         {
-            header.RemoveAt(0); // remove timestamp header element
-            
-            foreach (var element in wholeData)
+            ArrayList times = new ArrayList();
+            foreach (var timeStamp in buffered) // timestamps
             {
-                byte[] timeStamp = Encoding.UTF8.GetBytes(element.Key + ",");
-                OutFileStream?.Write(timeStamp, 0, timeStamp.Length);
-                foreach (var col in header)
+                byte[] time = Encoding.UTF8.GetBytes(timeStamp.Key + ",");
+                OutFileStream?.Write(time, 0, time.Length);
+                foreach (var stream in timeStamp.Value) // streams
                 {
-                    // TODO: Fix data storing on the right columns. Not working
-                    byte[] val;
-                    foreach (var value in element.Value)
+                    foreach (var row in stream.Value) // headers
                     {
-                        KeyValuePair<string, string> current = (KeyValuePair<string, string>) value;
-                        if (col.ToString() == current.Key)
-                            val = Encoding.UTF8.GetBytes(current.Value + ",");
-                        else
-                        {
-                            val = Encoding.UTF8.GetBytes( ",");
-                            OutFileStream?.Write(val, 0, val.Length);
-                            break;
-                        }
-                        OutFileStream?.Write(val, 0, val.Length);
+                        byte[] data = Encoding.UTF8.GetBytes(row.Value + ",");
+                        OutFileStream?.Write(data, 0, data.Length);
                     }
-                    
-                    
                 }
-                // Last element
                 byte[] breakLine = Encoding.UTF8.GetBytes("\n");
                 OutFileStream?.Write(breakLine, 0, breakLine.Length);
+                times.Add(timeStamp.Key);
+            }
+            foreach (var time in times)
+            {
+                wholeData.Remove(time.ToString());
             }
         }
 
@@ -233,7 +225,7 @@ namespace EEGLogger
         {
             string time = dataToAdd[0].ToString();
             dataToAdd.RemoveAt(0);
-            ArrayList dataPairs = new ArrayList();
+            Dictionary<string, string> dataPairs = new Dictionary<string, string>();
             // in case of device information, the third array element is a JArray of electrode contact quality values
             // these values need to be rearranged to stored accordingly
             if (stream == "dev")
@@ -250,15 +242,53 @@ namespace EEGLogger
             {
                 string col = key.ToString();
                 string row = dataToAdd[i].ToString();
-                KeyValuePair<string, string> current = new KeyValuePair<string, string>(col, row);
-                dataPairs.Add(current);
+                dataPairs.Add(col, row);
                 i++;
             }
+            Dictionary<string, Dictionary<string, string>> current = new Dictionary<string, Dictionary<string, string>>{ [stream] = dataPairs };
             if (wholeData.ContainsKey(time))
-                wholeData[time].AddRange(dataPairs);
+                wholeData[time][stream] = dataPairs;
             else
-                wholeData.Add(time, dataPairs);
-
+            {
+                // here we just fill out the whole data dictionary with the full structure
+                // Example:
+                /*
+                 Dictionary<string, Dictionary<string, Dictionary<string, string>>> wholeData = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>();
+                 Thus =>
+                 wholeData = 
+                 {
+                    [timestamp] =
+                    {
+                        ["eeg"] =
+                        {
+                            ["header0"] = value,
+                            ["header1"] = value,
+                            ["header2"] = value
+                            ...
+                        }
+                        ["mot"]
+                        {
+                            ...
+                        }
+                        ["pow"]
+                        ...
+                    }
+                 }
+                */
+                Dictionary<string, Dictionary<string, string>> father = new Dictionary<string, Dictionary<string, string>>();
+                foreach (var pair in headerKeys) 
+                {
+                   Dictionary<string, string> child = new Dictionary<string, string>();
+                   foreach (var value in pair.Value)
+                   {
+                       child.Add(value.ToString(), null);
+                   }
+                   father.Add(pair.Key, child);
+                }
+                wholeData.Add(time, father);
+                wholeData[time][stream] = dataPairs;
+            }
+                
         }
 
     }
